@@ -1,0 +1,220 @@
+# FalcoClaw Base Rules — Core OpenClaw Gateway Monitoring
+# https://github.com/thnkbig/falcoclaw
+#
+# These rules monitor the OpenClaw gateway process, device pairing,
+# token operations, and config mutations at the syscall level.
+
+##############################################################################
+# Macros
+##############################################################################
+
+- macro: openclaw_process
+  condition: >
+    (proc.name in (openclaw, node) and
+     proc.cmdline contains "openclaw")
+
+- macro: openclaw_config_files
+  condition: >
+    (fd.name startswith "/root/.openclaw/" or
+     fd.name startswith "/home/" and fd.name contains "/.openclaw/")
+
+- macro: openclaw_gateway_port
+  condition: >
+    (fd.sport = 3000 or fd.sport = 3001 or fd.sport = 5353)
+
+- macro: sensitive_token_files
+  condition: >
+    (fd.name contains "gateway.token" or
+     fd.name contains "device-tokens" or
+     fd.name contains ".env" or
+     fd.name contains "openclaw.json")
+
+- macro: agent_memory_files
+  condition: >
+    (fd.name contains "MEMORY.md" or
+     fd.name contains "SHARED-STATE.md" or
+     fd.name contains "HEARTBEAT.md" or
+     fd.name contains "ESCALATION.md")
+
+##############################################################################
+# Lists
+##############################################################################
+
+- list: allowed_openclaw_network_destinations
+  items: [api.telegram.org, api.openai.com, api.anthropic.com, api.minimax.chat]
+
+- list: known_agent_names
+  items: [max, pepper, karen, echo, tony, heimdall, vision, reed, jarvis, pamela, cron, oracle]
+
+- list: openclaw_admin_commands
+  items: ["/pair approve", "/allowlist add", "/allowlist remove", "/config", "/plugins"]
+
+##############################################################################
+# Rules — Privilege Escalation
+##############################################################################
+
+- rule: FalcoClaw — Token Scope Escalation Attempt
+  desc: >
+    Detects potential exploitation of CVE-2026-32922 where device.token.rotate
+    is called to mint tokens with broader scopes than the caller possesses.
+    The token rotation endpoint should only produce tokens with equal or
+    narrower scopes.
+  condition: >
+    spawned_process and openclaw_process and
+    proc.cmdline contains "device.token.rotate"
+  output: >
+    CRITICAL: Token scope escalation attempt detected
+    (user=%user.name command=%proc.cmdline pid=%proc.pid
+     parent=%proc.pname container=%container.name)
+  priority: CRITICAL
+  tags: [falcoclaw, privilege_escalation, cve-2026-32922]
+
+- rule: FalcoClaw — Unauthorized Pair Approval
+  desc: >
+    Detects /pair approve commands executed without proper admin scope
+    validation (CVE-2026-33579). Pairing approvals should only come from
+    operator.admin scoped sessions.
+  condition: >
+    spawned_process and openclaw_process and
+    proc.cmdline contains "/pair approve"
+  output: >
+    HIGH: Device pairing approval detected — verify admin scope
+    (user=%user.name command=%proc.cmdline pid=%proc.pid
+     parent=%proc.pname container=%container.name)
+  priority: WARNING
+  tags: [falcoclaw, privilege_escalation, cve-2026-33579]
+
+- rule: FalcoClaw — Allowlist Mutation from Non-Admin
+  desc: >
+    Detects /allowlist add or /allowlist remove commands that may bypass
+    admin scope requirements (CVE-2026-23112). Allowlist mutations should
+    require operator.admin scope.
+  condition: >
+    spawned_process and openclaw_process and
+    (proc.cmdline contains "/allowlist add" or
+     proc.cmdline contains "/allowlist remove")
+  output: >
+    HIGH: Allowlist mutation detected — check caller scope
+    (user=%user.name command=%proc.cmdline pid=%proc.pid
+     parent=%proc.pname)
+  priority: WARNING
+  tags: [falcoclaw, privilege_escalation, cve-2026-23112]
+
+##############################################################################
+# Rules — Config and Credential Access
+##############################################################################
+
+- rule: FalcoClaw — OpenClaw Config Directory Accessed by Non-OpenClaw Process
+  desc: >
+    Non-OpenClaw processes reading the .openclaw config directory may indicate
+    credential theft or reconnaissance. The config dir contains gateway tokens,
+    agent configs, and API keys.
+  condition: >
+    open_read and openclaw_config_files and
+    not openclaw_process and
+    not proc.name in (cat, less, vim, nano, grep, tail, head)
+  output: >
+    HIGH: Non-OpenClaw process accessed config directory
+    (user=%user.name process=%proc.name file=%fd.name pid=%proc.pid
+     parent=%proc.pname container=%container.name)
+  priority: WARNING
+  tags: [falcoclaw, credential_access]
+
+- rule: FalcoClaw — Gateway Token File Read
+  desc: >
+    Direct reads of gateway token files outside normal OpenClaw startup.
+    May indicate token exfiltration.
+  condition: >
+    open_read and sensitive_token_files and
+    not openclaw_process
+  output: >
+    CRITICAL: Gateway token file accessed by external process
+    (user=%user.name process=%proc.name file=%fd.name pid=%proc.pid
+     parent=%proc.pname)
+  priority: CRITICAL
+  tags: [falcoclaw, credential_access, token_theft]
+
+- rule: FalcoClaw — Agent Memory File Modified by External Process
+  desc: >
+    MEMORY.md, SHARED-STATE.md, and HEARTBEAT.md should only be written
+    by OpenClaw agent processes. External modifications may indicate
+    memory poisoning or unauthorized state manipulation.
+  condition: >
+    open_write and agent_memory_files and
+    not openclaw_process
+  output: >
+    HIGH: Agent memory file modified by non-agent process
+    (user=%user.name process=%proc.name file=%fd.name pid=%proc.pid
+     parent=%proc.pname)
+  priority: WARNING
+  tags: [falcoclaw, agent_integrity, memory_poisoning]
+
+##############################################################################
+# Rules — Suspicious Process Spawning
+##############################################################################
+
+- rule: FalcoClaw — Shell Spawned by OpenClaw Agent
+  desc: >
+    OpenClaw agent processes spawning shell sessions may indicate
+    prompt injection leading to command execution, or a compromised
+    skill executing arbitrary commands.
+  condition: >
+    spawned_process and
+    proc.pname in (openclaw, node) and
+    proc.name in (bash, sh, dash, zsh, csh, ksh)
+  output: >
+    CRITICAL: Shell spawned by OpenClaw process
+    (user=%user.name shell=%proc.name command=%proc.cmdline
+     parent=%proc.pname grandparent=%proc.aname[2]
+     pid=%proc.pid container=%container.name)
+  priority: CRITICAL
+  tags: [falcoclaw, prompt_injection, shell_spawn]
+
+- rule: FalcoClaw — Curl/Wget Spawned by Agent Process
+  desc: >
+    Agent processes making outbound HTTP requests via curl/wget may
+    indicate data exfiltration, C2 callbacks from malicious skills,
+    or prompt injection leading to external fetches.
+  condition: >
+    spawned_process and
+    proc.pname in (openclaw, node) and
+    proc.name in (curl, wget)
+  output: >
+    WARNING: HTTP client spawned by OpenClaw agent
+    (user=%user.name tool=%proc.name command=%proc.cmdline
+     parent=%proc.pname pid=%proc.pid)
+  priority: WARNING
+  tags: [falcoclaw, data_exfil, supply_chain]
+
+##############################################################################
+# Rules — WebSocket and Network
+##############################################################################
+
+- rule: FalcoClaw — WebSocket Connection from Non-Local Origin
+  desc: >
+    Detects inbound connections to OpenClaw gateway ports from
+    non-localhost sources. May indicate cross-site WebSocket hijacking
+    (ClawBleed / CVE-2026-25253).
+  condition: >
+    inbound and openclaw_gateway_port and
+    fd.sip != "127.0.0.1" and
+    fd.sip != "::1"
+  output: >
+    HIGH: Non-local connection to OpenClaw gateway
+    (source=%fd.sip:%fd.sport dest_port=%fd.dport
+     process=%proc.name pid=%proc.pid)
+  priority: WARNING
+  tags: [falcoclaw, network, websocket_hijack, cve-2026-25253]
+
+- rule: FalcoClaw — mDNS Broadcast Active
+  desc: >
+    OpenClaw broadcasts mDNS on port 5353 which can leak filesystem
+    paths, SSH availability, and hostname info. Should be disabled
+    or set to minimal mode on exposed gateways.
+  condition: >
+    outbound and fd.sport = 5353 and openclaw_process
+  output: >
+    NOTICE: OpenClaw mDNS broadcast active — consider minimal mode
+    (process=%proc.name pid=%proc.pid dest=%fd.sip:%fd.sport)
+  priority: NOTICE
+  tags: [falcoclaw, network, mdns_leakage]
