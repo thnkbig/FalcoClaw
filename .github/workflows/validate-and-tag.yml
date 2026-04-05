@@ -114,9 +114,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a ${{ steps.tag.outputs.new_tag }} -m "Release ${{ steps.tag.outputs.new_tag }}"
-          git push origin ${{ steps.tag.outputs.new_tag }}
-          echo "✅ Pushed tag: ${{ steps.tag.outputs.new_tag }}"
+          # Check if tag already exists and points to current commit
+          existing_sha=$(git rev-parse ${{ steps.tag.outputs.new_tag }} 2>/dev/null || echo "")
+          current_sha=$(git rev-parse HEAD)
+          if [ "$existing_sha" = "$current_sha" ]; then
+            echo "⏭️ Tag ${{ steps.tag.outputs.new_tag }} already exists at current commit, skipping"
+          else
+            git tag -a ${{ steps.tag.outputs.new_tag }} -m "Release ${{ steps.tag.outputs.new_tag }}"
+            git push origin ${{ steps.tag.outputs.new_tag }}
+            echo "✅ Pushed tag: ${{ steps.tag.outputs.new_tag }}"
+          fi
 
       - name: Create GitHub Release
         env:
