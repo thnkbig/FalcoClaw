@@ -121,6 +121,15 @@ jobs:
           echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
           echo "increment_type=$increment_type" >> $GITHUB_OUTPUT
 
+          # Only tag if there are new commits ahead of the last tag
+          if [ -n "$latest_tag" ] && git log ${latest_tag}..HEAD --oneline | grep -q .; then
+            echo "has_new_commits=true" >> $GITHUB_OUTPUT
+          elif [ -z "$latest_tag" ]; then
+            echo "has_new_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_new_commits=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate changelog
         id: changelog
         run: |
@@ -179,6 +188,7 @@ jobs:
           fi
 
       - name: Create and push tag
+        if: github.event_name == 'workflow_dispatch' || steps.tag.outputs.has_new_commits == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -193,6 +203,7 @@ jobs:
           echo "✅ Successfully created and pushed tag: $new_tag"
 
       - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch' || steps.tag.outputs.has_new_commits == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
