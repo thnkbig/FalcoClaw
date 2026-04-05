@@ -41,7 +41,9 @@ jobs:
           cache: true
 
       - name: Build
-        run: go build -v ./...
+        run: |
+          go mod tidy
+          go build -v ./...
 
       - name: Run tests
         run: go test -v ./... 2>/dev/null || echo "No tests found"
