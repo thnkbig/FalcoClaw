@@ -7,10 +7,11 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
-  goreleaser:
-    name: Release
+  release:
+    name: Build and Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,12 +20,67 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: '1.22'
           cache: true
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+      - name: Set version env
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Build
+        run: |
+          go mod tidy
+          CGO_ENABLED=0 go build             -ldflags "-s -w -X github.com/thnkbig/falcoclaw/cmd.Version=$VERSION -X github.com/thnkbig/falcoclaw/cmd.GitCommit=$GITHUB_SHA"             -o falcoclaw .
+
+      - name: Package
+        run: |
+          tar -czf falcoclaw_$VERSION_linux_amd64.tar.gz falcoclaw
+          sha256sum falcoclaw_$VERSION_linux_amd64.tar.gz > checksums.txt
+          cat checksums.txt
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
         with:
-          args: release --clean
+          draft: true
+          files: |
+            falcoclaw_$VERSION_linux_amd64.tar.gz
+            checksums.txt
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    name: Docker Image (amd64)
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set version env
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ghcr.io/thnkbig/falcoclaw:${{ env.VERSION }}
+            ghcr.io/thnkbig/falcoclaw:latest
+          build-args: |
+            VERSION=${{ env.VERSION }}
+            COMMIT=$GITHUB_SHA
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
