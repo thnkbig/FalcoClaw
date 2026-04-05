@@ -1,0 +1,131 @@
+name: Validate & Tag
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      increment_type:
+        description: "Version increment type"
+        required: false
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tag.outputs.new_tag }}
+      increment_type: ${{ steps.tag.outputs.increment_type }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Go Mod Tidy
+        run: go mod tidy
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+
+      - name: Run Tests
+        run: go test ./... -v -count=1
+
+      - name: Build Binary
+        env:
+          VERSION: ${{ github.sha }}
+          COMMIT: ${{ github.sha }}
+          DATE: ${{ github.event.head_commit.timestamp }}
+        run: |
+          CGO_ENABLED=0 go build \
+            -ldflags "-s -w -X github.com/thnkbig/falcoclaw/cmd.Version=${VERSION} -X github.com/thnkbig/falcoclaw/cmd.GitCommit=${COMMIT}" \
+            -o bin/falcoclaw .
+
+      - name: Validate Rules
+        run: |
+          ./bin/falcoclaw check --rules rules/responses.yaml
+
+      - name: Check for breaking changes
+        id: breaking
+        run: |
+          breaking="false"
+          if git log -1 --pretty=%B | grep -iE 'BREAKING CHANGE:|BREAKING:|!:' || \
+             git log -1 --pretty=%B | grep -q 'BREAKING'; then
+            breaking="true"
+            echo "⚠️ Breaking change detected in commit message"
+          fi
+          echo "breaking=$breaking" >> $GITHUB_OUTPUT
+
+      - name: Get latest tag and calculate new version
+        id: tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
+
+          version=${latest_tag#v}
+          IFS='.' read -r major minor patch <<< "$version"
+
+          # Handle invalid version format
+          major=${major:-0}
+          minor=${minor:-0}
+          patch=${patch:-0}
+
+          increment_type="${{ github.event.inputs.increment_type || 'patch' }}"
+
+          if [ "${{ steps.breaking.outputs.breaking }}" == "true" ] && [ -z "${{ github.event.inputs.increment_type }}" ]; then
+            increment_type="major"
+            echo "📢 Auto-incrementing major version due to breaking change"
+          fi
+
+          # Auto-upgrade patch to minor if a feat is introduced
+          if [ "$increment_type" == "patch" ] && git log ${latest_tag}..HEAD --pretty=%B | grep -qE '^feat(\(.+\))?:'; then
+            increment_type="minor"
+            echo "📢 Auto-incrementing minor version due to new features"
+          fi
+
+          case $increment_type in
+            major)
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            minor)
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            patch)
+              patch=$((patch + 1))
+              ;;
+          esac
+
+          new_tag="v${major}.${minor}.${patch}"
+          echo "New tag: $new_tag (${increment_type} increment)"
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+          echo "increment_type=$increment_type" >> $GITHUB_OUTPUT
+
+      - name: Create Tag
+        if: github.event_name == 'push' || github.event.inputs.increment_type != ''
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git tag -a ${{ steps.tag.outputs.new_tag }} -m "Release ${{ steps.tag.outputs.new_tag }} via GitHub Actions"
+          git push origin ${{ steps.tag.outputs.new_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
