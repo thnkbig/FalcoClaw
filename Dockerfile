@@ -4,13 +4,16 @@ FROM golang:1.22-alpine AS builder
 RUN apk add --no-cache git
 
 WORKDIR /src
+
+# Copy go.mod first, download deps
 COPY go.mod go.sum ./
 RUN go mod download
 
+# Copy source and build
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build \
-    -ldflags "-s -w -X github.com/thnkbig/falcoclaw/cmd.Version=$(cat VERSION 2>/dev/null || echo dev)" \
-    -o /falcoclaw .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags "-s -w -X github.com/thnkbig/falcoclaw/cmd.Version=${VERSION:-dev} -X github.com/thnkbig/falcoclaw/cmd.GitCommit=${COMMIT:-unknown}" \
+    -o falcoclaw .
 
 # Runtime stage
 FROM alpine:3.20
@@ -24,7 +27,7 @@ RUN apk add --no-cache \
     bash \
     ca-certificates
 
-COPY --from=builder /falcoclaw /usr/local/bin/falcoclaw
+COPY --from=builder /src/falcoclaw /usr/local/bin/falcoclaw
 
 RUN mkdir -p /etc/falcoclaw /var/log/falcoclaw /var/quarantine/falcoclaw
 

@@ -2,10 +2,6 @@ version: 2
 
 project_name: falcoclaw
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: falcoclaw
     main: .
@@ -45,18 +41,16 @@ dockers:
       - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64"
     goos: linux
     goarch: amd64
+    use: docker
+    context: .
     dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/amd64"
   - image_templates:
       - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-arm64"
     goos: linux
     goarch: arm64
+    use: docker
+    context: .
     dockerfile: Dockerfile
-    use: buildx
-    build_flag_templates:
-      - "--platform=linux/arm64"
 
 docker_manifests:
   - name_template: "ghcr.io/thnkbig/falcoclaw:{{ .Version }}"
@@ -67,3 +61,4 @@ docker_manifests:
     image_templates:
       - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64"
       - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-arm64"
+
