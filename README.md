@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/falcoclaw-logo.png" alt="FalcoClaw" width="500">
+  <img src="https://raw.githubusercontent.com/thnkbig/falcoclaw/main/assets/falcoclaw-logo.png" alt="FalcoClaw" width="500">
 </p>
 <p align="center">
   <strong>Runtime security for AI agents and Linux workloads.</strong>
