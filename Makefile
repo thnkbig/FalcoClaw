@@ -7,7 +7,7 @@ LDFLAGS   := -s -w \
              -X github.com/thnkbig/falcoclaw/cmd.GitCommit=$(COMMIT) \
              -X github.com/thnkbig/falcoclaw/cmd.BuildDate=$(DATE)
 
-.PHONY: all build install clean test lint docker check service-install service-uninstall
+.PHONY: all build install clean test lint lint-fix ci-check ci-check-fast check docker service-install service-uninstall
 
 all: build
 
@@ -26,8 +26,42 @@ uninstall:
 test:
 	go test ./... -v -count=1
 
+# Lint: fix formatting issues in-place
+lint-fix:
+	go mod tidy
+	go fmt ./...
+
+# Lint: check formatting (CI-style, no auto-fix)
 lint:
-	golangci-lint run ./...
+	@echo "Running go vet..."
+	@go vet ./... || { echo "go vet failed"; exit 1; }
+	@echo "Checking formatting..."
+	@unformatted=$$(gofmt -l .); \
+	if [ -n "$$unformatted" ]; then \
+		echo "Unformatted files:"; echo "$$unformatted"; \
+		echo "Run 'make lint-fix' to auto-fix"; \
+		exit 1; \
+	fi
+	@echo "Checking go.sum is tracked..."
+	@if ! git ls-files --error-unmatch go.sum >/dev/null 2>&1; then \
+		echo "go.sum is not tracked in git — run 'git add go.sum && git commit'"; \
+		exit 1; \
+	fi
+	@echo "All lint checks passed."
+
+# Fast CI check: skip go mod tidy (assumes dependencies are current)
+ci-check-fast: build
+	@echo "Running go vet..."
+	@go vet ./... || { echo "go vet failed"; exit 1; }
+	@echo "Checking formatting..."
+	@unformatted=$$(gofmt -l .); \
+	if [ -n "$$unformatted" ]; then \
+		echo "Unformatted files:"; echo "$$unformatted"; exit 1; \
+	fi
+	@echo "ci-check-fast passed."
+
+# Full CI check (what GitHub Actions runs) — use this in pre-commit
+ci-check: lint
 
 check: build
 	bin/$(BINARY) check --rules rules/responses.yaml

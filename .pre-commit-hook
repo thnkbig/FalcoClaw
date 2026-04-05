@@ -1,0 +1,17 @@
+#!/bin/bash
+set -e
+echo 'Running pre-commit CI checks...'
+go mod tidy
+CGO_ENABLED=0 go build -v ./...
+go vet ./...
+unformatted=$(gofmt -l .)
+if [ -n "$unformatted" ]; then
+    echo 'Unformatted files:'
+    echo "$unformatted"
+    exit 1
+fi
+if ! git ls-files --error-unmatch go.sum >/dev/null 2>&1; then
+    echo 'go.sum not tracked'
+    exit 1
+fi
+echo 'Pre-commit checks passed'
