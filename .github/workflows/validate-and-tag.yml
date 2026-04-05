@@ -1,0 +1,126 @@
+name: Validate & Tag
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      increment_type:
+        description: "Version increment type"
+        required: false
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tag.outputs.new_tag }}
+      increment_type: ${{ steps.tag.outputs.increment_type }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache: true
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Check for breaking changes
+        id: breaking
+        run: |
+          breaking="false"
+          if git log -1 --pretty=%B | grep -iE 'BREAKING CHANGE:|BREAKING:|!:'; then
+            breaking="true"
+            echo "⚠️ Breaking change detected"
+          fi
+          echo "breaking=$breaking" >> $GITHUB_OUTPUT
+
+      - name: Get latest tag and calculate new version
+        id: tag
+        run: |
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $latest_tag"
+
+          version=${latest_tag#v}
+          IFS='.' read -r major minor patch <<< "$version"
+
+          increment_type="${{ github.event.inputs.increment_type || 'patch' }}"
+
+          if [ "${{ steps.breaking.outputs.breaking }}" == "true" ] && [ -z "${{ github.event.inputs.increment_type }}" ]; then
+            increment_type="major"
+          fi
+
+          case $increment_type in
+            major)   major=$((major+1)); minor=0; patch=0 ;;
+            minor)   minor=$((minor+1)); patch=0 ;;
+            patch)   patch=$((patch+1)) ;;
+          esac
+
+          new_tag="v${major}.${minor}.${patch}"
+          echo "New tag: $new_tag (${increment_type})"
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+          echo "increment_type=$increment_type" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        run: |
+          new_tag=${{ steps.tag.outputs.new_tag }}
+          latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          echo "# Changelog for $new_tag" > CHANGELOG_TEMP.md
+          echo "" >> CHANGELOG_TEMP.md
+          echo "## What's Changed" >> CHANGELOG_TEMP.md
+          echo "" >> CHANGELOG_TEMP.md
+
+          if [ -n "$latest_tag" ]; then
+            for prefix in feat fix docs refactor chore; do
+              changes=$(git log ${latest_tag}..HEAD --pretty=format:"- %s (%h)" --grep="^${prefix}" -i 2>/dev/null | grep -v "^$" || true)
+              if [ -n "$changes" ]; then
+                echo "### $(echo $prefix | tr '[:lower:]' '[:upper:]')" >> CHANGELOG_TEMP.md
+                echo "$changes" >> CHANGELOG_TEMP.md
+                echo "" >> CHANGELOG_TEMP.md
+              fi
+            done
+          else
+            echo "Initial release" >> CHANGELOG_TEMP.md
+          fi
+
+          echo "## Full Changelog" >> CHANGELOG_TEMP.md
+          if [ -n "$latest_tag" ]; then
+            echo "https://github.com/${{ github.repository }}/compare/${latest_tag}...${new_tag}" >> CHANGELOG_TEMP.md
+          fi
+
+          cat CHANGELOG_TEMP.md
+
+      - name: Create and push tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a ${{ steps.tag.outputs.new_tag }} -m "Release ${{ steps.tag.outputs.new_tag }}"
+          git push origin ${{ steps.tag.outputs.new_tag }}
+          echo "✅ Pushed tag: ${{ steps.tag.outputs.new_tag }}"
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create ${{ steps.tag.outputs.new_tag }} \
+            --title "Release ${{ steps.tag.outputs.new_tag }}" \
+            --notes-file CHANGELOG_TEMP.md \
+            --prerelease=false

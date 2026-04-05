@@ -1,0 +1,34 @@
+name: Falco Rules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'rules/**/*.yaml'
+      - '.github/workflows/falco-rules.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rules/**/*.yaml'
+
+jobs:
+  validate:
+    name: Validate Falco Rules
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Falco
+        run: |
+          curl -fsSL https://falco.org/repo/falcosecurity-packages.asc | gpg --dearmor -o /usr/share/keyrings/falco-archive-keyring.gpg 2>/dev/null || true
+          echo "deb [signed-by=/usr/share/keyrings/falco-archive-keyring.gpg] https://download.falco.org/packages/deb stable main" | tee /etc/apt/sources.list.d/falcosecurity.list
+          apt-get update -qq 2>/dev/null
+          apt-get install -y -qq falco
+
+      - name: Validate rules
+        run: |
+          for f in rules/*.yaml; do
+            echo "Checking $f"
+            falco --validate "$f" || exit 1
+          done
+          echo "✅ All rules validated"
