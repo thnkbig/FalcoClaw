@@ -1,5 +1,6 @@
 run:
   timeout: 5m
+  modules-download-mode: readonly
 
 linters:
   enable:
@@ -9,23 +10,32 @@ linters:
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
-    - misspell
-    - unconvert
-    - bodyclose
-    - noctx
     - gosec
+    - prealloc
+    - misspell
+  disable:
+    - deadcode
+    - varcheck
+    - structcheck
 
 linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
   gosec:
     excludes:
-      - G204  # Subprocess launched with variable — expected for actionners
-    severity: medium
+      - G104
+  govet:
+    enable-all: true
+  staticcheck:
+    checks:
+      - all
+      - UC1000
 
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gosec
-        - errcheck
+  exclude-use-stock: true
+  max-issues-per-linter: 50
+  max-same-issues: 10
+
+service:
+  golangci-lint-version: 2.1

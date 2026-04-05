@@ -1,0 +1,57 @@
+name: Bug Report
+description: Report a bug in FalcoClaw
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the template below.
+  - type: input
+    id: falcoclaw-version
+    attributes:
+      label: FalcoClaw version
+      description: Output of `falcoclaw version` or image tag
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux (native)
+        - Docker (Linux host)
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What happened vs what you expected
+      placeholder: |
+        Steps to reproduce:
+        1. ...
+        2. ...
+        3. ...
+
+        Expected:
+        ...
+
+        Actual:
+        ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: FalcoClaw and/or Falco log output
+      placeholder: |
+        [paste logs here]
+  - type: input
+    id: falco-version
+    attributes:
+      label: Falco version
+      placeholder: e.g. 0.38.0

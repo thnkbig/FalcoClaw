@@ -1,0 +1,28 @@
+name: Feature Request
+description: Request a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for FalcoClaw? Fill out the template below.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem it solves
+      description: What problem does this solve? Why does it matter?
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should it work?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you considered?
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example use cases
+      description: Real-world scenarios where this would help
