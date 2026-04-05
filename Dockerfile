@@ -17,7 +17,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     -o falcoclaw .
 
 # Runtime stage
-FROM alpine:3.20
+FROM alpine:3.23
 
 RUN apk add --no-cache \
     iptables ip6tables nftables procps util-linux bash ca-certificates
