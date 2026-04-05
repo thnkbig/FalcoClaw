@@ -2,27 +2,24 @@
 
 All notable changes to FalcoClaw will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [v0.1.0] — 2026-04-05
 
-## [Unreleased]
-
-### Added
-- Initial release as Falco Talon for Linux
-- 14 response actionners (linux:kill, linux:block_ip, linux:quarantine, linux:disable_user, linux:stop_service, linux:firewall, linux:script, openclaw:disable_skill, openclaw:revoke_token, openclaw:restart, openclaw:disable_agent, agent:investigate, agent:notify, agent:telegram)
-- 12 response rules covering CRITICAL and WARNING priority events
-- systemd service for automated startup
-- Dockerfile and goreleaser for multi-platform binary releases
-- GitHub Actions CI/CD pipeline (lint, test, security scan, auto-tag, release)
-- CONTRIBUTORS.md and SECURITY.md
-
-## [v2.0.0] - 2026-04-05
+Initial open source release.
 
 ### Added
-- Complete rewrite as a Go response engine
-- Migration from Falco-sidekick plugin to standalone binary
-- Environment variable expansion in response rules
-- Telegram forum topic routing via `message_thread_id`
+- Core response engine with webhook listener (port 2804)
+- 7 Linux actionners: kill, block_ip, quarantine, disable_user, stop_service, firewall, script
+- 4 OpenClaw actionners: disable_skill, revoke_token, restart, disable_agent
+- 3 Agent actionners: notify, investigate, telegram
+- YAML response rules with priority operators and tag matching
+- Safety guards on all destructive actionners
+- Dry run mode (global, per-rule, per-action)
+- CLI commands: server, check, actionners, version
+- Falco and Falcosidekick webhook integration
+- Docker and systemd deployment options
+- GitHub Actions CI/CD pipeline
+- goreleaser for multi-arch binary and Docker image builds
+- Architecture documentation
+- Contributing guide, security policy, code of conduct
 
-[Unreleased]: https://github.com/thnkbig/falcoclaw/compare/v2.0.0...HEAD
-[v2.0.0]: https://github.com/thnkbig/falcoclaw/releases/tag/v2.0.0
+[v0.1.0]: https://github.com/thnkbig/falcoclaw/releases/tag/v0.1.0
