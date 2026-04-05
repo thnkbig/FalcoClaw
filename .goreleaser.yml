@@ -40,11 +40,6 @@ changelog:
       - "^test:"
       - "^ci:"
       - "^chore:"
-
-github:
-  owner: thnkbig
-  name: falcoclaw
-
 dockers:
   - image_templates:
       - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64"
