@@ -1,5 +1,5 @@
 # FalcoClaw Host Tuning Overrides
-# https://github.com/thnkbig/falcoclaw
+# https://github.com/thnkbig/FalcoClaw
 #
 # This file contains overrides for upstream Falco rules to reduce
 # false positives in OpenClaw environments. Uses Falco's append

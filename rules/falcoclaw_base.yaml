@@ -1,5 +1,5 @@
 # FalcoClaw Base Rules — Core OpenClaw Gateway Monitoring
-# https://github.com/thnkbig/falcoclaw
+# https://github.com/thnkbig/FalcoClaw
 #
 # These rules monitor the OpenClaw gateway process, device pairing,
 # token operations, and config mutations at the syscall level.

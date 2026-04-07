@@ -12,7 +12,7 @@ Thank you for your interest in contributing to FalcoClaw.
 ### Initial Setup
 
 ```bash
-git clone https://github.com/thnkbig/falcoclaw.git
+git clone https://github.com/thnkbig/FalcoClaw.git
 cd falcoclaw
 make setup   # install dev dependencies + pre-commit hooks
 make build   # verify the build succeeds
