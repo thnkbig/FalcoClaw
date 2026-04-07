@@ -1,74 +1,56 @@
 version: 2
-
 project_name: falcoclaw
-
+before:
+  hooks:
+  - go mod tidy
 builds:
-  - id: falcoclaw
-    main: .
-    binary: falcoclaw
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-    goarch:
-      - amd64
-      - arm64
-    ldflags:
-      - -s -w
-      - -X github.com/thnkbig/falcoclaw/cmd.Version={{.Version}}
-      - -X github.com/thnkbig/falcoclaw/cmd.GitCommit={{.Commit}}
-      - -X github.com/thnkbig/falcoclaw/cmd.BuildDate={{.Date}}
-
+- id: falcoclaw
+  main: .
+  binary: falcoclaw
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - linux
+  goarch:
+  - amd64
+  - arm64
+  ldflags:
+  - -s -w
+  - -X github.com/thnkbig/falcoclaw/cmd.Version={{.Version}}
+  - -X github.com/thnkbig/falcoclaw/cmd.GitCommit={{.Commit}}
+  - -X github.com/thnkbig/falcoclaw/cmd.BuildDate={{.Date}}
 archives:
-  - id: default
-    format: tar.gz
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-
+- id: default
+  format: tar.gz
+  name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
 checksum:
-  name_template: "checksums.txt"
-
+  name_template: checksums.txt
 changelog:
   sort: asc
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^ci:"
-
+    - '^docs:'
+    - '^test:'
+    - '^ci:'
 dockers:
-  - image_templates:
-      - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64"
-    use: buildx
-    goos: linux
-    goarch: amd64
-    dockerfile: Dockerfile
-    context: .
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.source=https://github.com/thnkbig/FalcoClaw"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.licenses=Apache-2.0"
-
-  - image_templates:
-      - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-arm64"
-    use: buildx
-    goos: linux
-    goarch: arm64
-    dockerfile: Dockerfile
-    context: .
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.source=https://github.com/thnkbig/FalcoClaw"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.licenses=Apache-2.0"
-
+- image_templates:
+  - ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64
+  use: buildx
+  goos: linux
+  goarch: amd64
+  dockerfile: Dockerfile
+- image_templates:
+  - ghcr.io/thnkbig/falcoclaw:{{ .Version }}-arm64
+  use: buildx
+  goos: linux
+  goarch: arm64
+  dockerfile: Dockerfile
 docker_manifests:
-  - name_template: "ghcr.io/thnkbig/falcoclaw:{{ .Version }}"
-    image_templates:
-      - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64"
-      - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-arm64"
-
-  - name_template: "ghcr.io/thnkbig/falcoclaw:latest"
-    image_templates:
-      - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64"
-      - "ghcr.io/thnkbig/falcoclaw:{{ .Version }}-arm64"
+- name_template: ghcr.io/thnkbig/falcoclaw:{{ .Version }}
+  image_templates:
+  - ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64
+  - ghcr.io/thnkbig/falcoclaw:{{ .Version }}-arm64
+- name_template: ghcr.io/thnkbig/falcoclaw:latest
+  image_templates:
+  - ghcr.io/thnkbig/falcoclaw:{{ .Version }}-amd64
+  - ghcr.io/thnkbig/falcoclaw:{{ .Version }}-arm64
