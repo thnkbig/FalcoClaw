@@ -22,4 +22,4 @@ Initial open source release.
 - Architecture documentation
 - Contributing guide, security policy, code of conduct
 
-[v0.1.0]: https://github.com/thnkbig/falcoclaw/releases/tag/v0.1.0
+[v0.1.0]: https://github.com/thnkbig/FalcoClaw/releases/tag/v0.1.0

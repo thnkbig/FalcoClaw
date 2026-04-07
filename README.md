@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/thnkbig/falcoclaw/main/assets/falcoclaw-logo.jpg" alt="FalcoClaw" width="500">
+  <img src="https://raw.githubusercontent.com/thnkbig/FalcoClaw/main/assets/falcoclaw-logo-transparent.png" alt="FalcoClaw" width="500">
 </p>
 <p align="center">
   <strong>Runtime security for AI agents and Linux workloads.</strong>
@@ -7,7 +7,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue.svg"></a>
   <a href="https://go.dev"><img src="https://img.shields.io/badge/go-1.22+-00ADD8.svg"></a>
-  <a href="https://github.com/thnkbig/falcoclaw/actions/workflows/ci.yml"><img src="https://github.com/thnkbig/falcoclaw/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/thnkbig/FalcoClaw/actions/workflows/ci.yml"><img src="https://github.com/thnkbig/FalcoClaw/actions/workflows/ci.yml/badge.svg"></a>
 </p>
 
 FalcoClaw is an open-source runtime response engine built for [OpenClaw](https://github.com/openclaw/openclaw), [Hermes](https://github.com/NousResearch/hermes-agent), and any Linux system running AI agents. It extends [Falco](https://falco.org)'s syscall-level detection with automated response — killing malicious processes, blocking IPs, quarantining files, and dispatching investigations to your agents — all in milliseconds.
@@ -64,7 +64,7 @@ Kernel syscall
 ### Build from source
 
 ```bash
-git clone https://github.com/thnkbig/falcoclaw.git
+git clone https://github.com/thnkbig/FalcoClaw.git
 cd falcoclaw
 make build
 ```
@@ -258,7 +258,7 @@ If you run Kubernetes, use Falco Talon. If you run Linux without Kubernetes, use
 Contributions welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
-git clone https://github.com/thnkbig/falcoclaw.git
+git clone https://github.com/thnkbig/FalcoClaw.git
 cd falcoclaw
 make build
 make test
